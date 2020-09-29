@@ -21,7 +21,7 @@ def gen_fake_data(mean_multiplier):
         return 1 / np.log(1 + t) * mean_multiplier
     def sigma(t):
         return mean(t) * 0.2
-    return np.stack([gen_sync_error(NUM_HOPS, mean(t), sigma(t)) for t in range(1, T_MAX)])
+    return np.stack([gen_sync_error(NUM_HOPS, mean(t), sigma(t)) for t in range(1, T_MAX + 1)])
 
 path = "fake_data"
 Path(path).mkdir(parents=True, exist_ok=True)
