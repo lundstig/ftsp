@@ -1,4 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
+import numpy as np
+from scipy.linalg import lstsq
 
 RESYNC_TIME = 30
 NUMENTRIES_LIMIT = 3
@@ -17,31 +20,40 @@ class SyncMessage:
 class Node:
     node_id: int
     clock_offset: float
-    clock_speed: float
+    clock_skew: float
 
     root_id: int = None
     highest_seq_num: int = 0
     heartbeats: int = 0
-    entries: List = []
+    entries: List = field(default_factory=list)
+    predicted_offset: float = None
+    predicted_skew: float = None
+
+    def __hash__(self):
+        return self.node_id
 
     def local_clock(self, real_time: float) -> float:
-        return self.clock_offset + real_time * self.clock_speed
+        return self.clock_offset + real_time * self.clock_skew
 
     def real_clock(self, local_time: float) -> float:
-        return (local_time - self.clock_offset) / self.clock_speed
+        return (local_time - self.clock_offset) / self.clock_skew
 
     def predict_time(self, real_time):
-        pass
+        return self.local_clock(real_time)
 
-    def estimate_drift(self, real_time, msg):
-        pass
+    def calculate_regression(self):
+        # Do linear regression on all pairs (local, global) we have to estimate skew and offset.
+        local_times, global_times = zip(*self.entries)
+        A = np.stack([np.array(local_times), np.ones(len(self.entries))], axis=1)
+        b = np.array(global_times)
+        self.predicted_skew, self.predicted_offset = lstsq(A, b)[0]
 
     def get_error(self, real_time, msg):
-        return self.predict_time(real_time) - msg
+        return self.predict_time(real_time) - msg.send_time
 
     def next_timer_event(self, real_time: float) -> float:
         local_time = self.local_clock(real_time)
-        local_time_until_event = local_time % RESYNC_TIME
+        local_time_until_event = (local_time + 1e-9) % RESYNC_TIME
         return self.real_clock(local_time + local_time_until_event)
 
     def handle_timer(self, real_time, send):
@@ -55,7 +67,8 @@ class Node:
             send(
                 SyncMessage(
                     self.predict_time(real_time), self.root_id, self.highest_seq_num
-                )
+                ),
+                self,
             )
 
         if self.root_id == self.node_id:
@@ -77,5 +90,6 @@ class Node:
         ):
             self.entries = []
         else:
-            self.entries.append(msg)
-            self.estimate_drift(real_time, msg)
+            new_entry = (self.local_clock(real_time), msg.send_time)
+            self.entries.append(new_entry)
+            self.calculate_regression()
