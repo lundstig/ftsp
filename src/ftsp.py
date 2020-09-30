@@ -26,8 +26,8 @@ class Node:
     highest_seq_num: int = 0
     heartbeats: int = 0
     entries: List = field(default_factory=list)
-    predicted_offset: float = None
-    predicted_skew: float = None
+    predicted_offset: float = 0
+    predicted_skew: float = 1
 
     def __hash__(self):
         return self.node_id
@@ -39,7 +39,11 @@ class Node:
         return (local_time - self.clock_offset) / self.clock_skew
 
     def predict_time(self, real_time):
-        return self.local_clock(real_time)
+        return self.local_clock(real_time) * self.predicted_skew + self.predicted_offset
+
+    def is_synced(self):
+        # TODO: is this correct?
+        return len(self.entries) > NUMENTRIES_LIMIT or self.root_id == self.node_id
 
     def calculate_regression(self):
         # Do linear regression on all pairs (local, global) we have to estimate skew and offset.
