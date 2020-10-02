@@ -1,9 +1,13 @@
-from queue import PriorityQueue
 from dataclasses import dataclass, field
+from queue import PriorityQueue
 from typing import Callable, List
+import random
+
 import numpy as np
 
 from ftsp import Node
+
+SPEED_OF_LIGHT = 299_792_458
 
 
 @dataclass(order=True)
@@ -18,7 +22,7 @@ class StatPoint:
     total_nodes: int
     synced_count: int
     root_claimants: List[int]
-    prediction_error_ms: List[float]
+    prediction_error_us: List[float]
 
     def __init__(self, nodes, real_time):
         self.real_time = real_time
@@ -27,7 +31,7 @@ class StatPoint:
         self.synced_count = sum(node.is_synced() for node in nodes)
         if self.root_claimants:
             actual_root = sorted(self.root_claimants)[0]
-            self.prediction_error_ms = [
+            self.prediction_error_us = [
                 abs(
                     node.predict_time(real_time)
                     - nodes[actual_root].predict_time(real_time)
@@ -36,18 +40,47 @@ class StatPoint:
                 if node.is_synced()
             ]
         else:
-            self.prediction_error_ms = []
+            self.prediction_error_us = []
+
+
+def random_with_diameter(span: float) -> float:
+    return random.uniform(-span / 2, span / 2)
+
+
+def normal(mean: float, sigma: float) -> float:
+    return np.random.normal(mean, sigma)
+
+
+def get_n_closest(n: int, node: Node, nodes: List[Node]) -> List[Node]:
+    closest = sorted(nodes, key=lambda neighbour: node.distance_to(neighbour))
+    return closest[1 : n + 1]
 
 
 def simulate(
     n: int,
     simulation_length: float,
+    delay_mean: float,
+    delay_sigma: float,
+    offset_sigma: float,
+    skew_sigma: float,
+    connect_closest=5,
+    area_diameter=1_000_000,
     stats_every: float = 1.0,
     debug_print: bool = False,
 ) -> List[StatPoint]:
     print(f"Simulating with {n} nodes")
-    nodes = [Node(node_id=i, clock_offset=0, clock_skew=1) for i in range(0, n)]
-    neighbours = {node: nodes for node in nodes}
+    np.random.seed(0)
+    nodes = [
+        Node(
+            node_id=i,
+            clock_offset=normal(0, offset_sigma),
+            clock_skew=normal(1, skew_sigma),
+            x=random_with_diameter(area_diameter),
+            y=random_with_diameter(area_diameter),
+        )
+        for i in range(0, n)
+    ]
+    neighbours = {node: get_n_closest(connect_closest, node, nodes) for node in nodes}
 
     real_time = 0
     future_events = PriorityQueue()
@@ -61,6 +94,7 @@ def simulate(
             add_timer_event(node)
 
         timer_event = Event(node.next_timer_event(real_time), on_timer_event)
+        # print(timer_event.time)
         future_events.put(timer_event)
 
     def add_msg_event(msg, reciever: Node, delay: float):
@@ -75,7 +109,9 @@ def simulate(
     # Returns the delay for a message sent from a to its neighbour b.
     def msg_delay(sender: Node, reciever: Node) -> float:
         assert reciever in neighbours[sender]
-        return max(0, np.random.normal(loc=0.01, scale=0.005))
+        distance_delay = sender.distance_to(reciever) / SPEED_OF_LIGHT
+        random_delay = max(0, np.random.normal(delay_mean, delay_sigma))
+        return distance_delay + random_delay
 
     # Function given to nodes for broadcasting message.
     def broadcast_msg(msg, sender: Node):

@@ -1,12 +1,15 @@
 from dataclasses import dataclass, field
+from math import sqrt
 from typing import List
+
 import numpy as np
 from scipy.linalg import lstsq
 
 RESYNC_TIME = 30
+MAX_ENTRIES = 10
 NUMENTRIES_LIMIT = 3
 ROOT_TIMEOUT = 6
-TIME_ERROR_LIMIT = 0.01
+TIME_ERROR_LIMIT = 0.001
 
 
 @dataclass
@@ -21,6 +24,8 @@ class Node:
     node_id: int
     clock_offset: float
     clock_skew: float
+    x: float
+    y: float
 
     root_id: int = None
     highest_seq_num: int = 0
@@ -46,21 +51,27 @@ class Node:
 
     def is_synced(self):
         # TODO: is this correct?
-        return len(self.entries) > NUMENTRIES_LIMIT or self.is_root()
+        return len(self.entries) >= NUMENTRIES_LIMIT or self.is_root()
+
+    def distance_to(self, other) -> float:
+        dx = abs(self.x - other.x)
+        dy = abs(self.y - other.y)
+        return sqrt(dx * dx + dy * dy)
 
     def calculate_regression(self):
         # Do linear regression on all pairs (local, global) we have to estimate skew and offset.
+        self.entries = self.entries[-MAX_ENTRIES:]
         local_times, global_times = zip(*self.entries)
         A = np.stack([np.array(local_times), np.ones(len(self.entries))], axis=1)
         b = np.array(global_times)
-        self.predicted_skew, self.predicted_offset = lstsq(A, b)[0]
+        # self.predicted_skew, self.predicted_offset = lstsq(A, b)[0]
 
     def get_error_for_msg(self, real_time, msg):
         return self.predict_time(real_time) - msg.send_time
 
     def next_timer_event(self, real_time: float) -> float:
-        local_time = self.local_clock(real_time)
-        local_time_until_event = (local_time + 1e-9) % RESYNC_TIME
+        local_time = self.local_clock(real_time) + 1e-9
+        local_time_until_event = RESYNC_TIME - (local_time % RESYNC_TIME)
         return self.real_clock(local_time + local_time_until_event)
 
     def handle_timer(self, real_time, send):
