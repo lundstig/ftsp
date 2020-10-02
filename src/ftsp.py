@@ -41,9 +41,12 @@ class Node:
     def predict_time(self, real_time):
         return self.local_clock(real_time) * self.predicted_skew + self.predicted_offset
 
+    def is_root(self):
+        return self.root_id == self.node_id
+
     def is_synced(self):
         # TODO: is this correct?
-        return len(self.entries) > NUMENTRIES_LIMIT or self.root_id == self.node_id
+        return len(self.entries) > NUMENTRIES_LIMIT or self.is_root()
 
     def calculate_regression(self):
         # Do linear regression on all pairs (local, global) we have to estimate skew and offset.
@@ -52,7 +55,7 @@ class Node:
         b = np.array(global_times)
         self.predicted_skew, self.predicted_offset = lstsq(A, b)[0]
 
-    def get_error(self, real_time, msg):
+    def get_error_for_msg(self, real_time, msg):
         return self.predict_time(real_time) - msg.send_time
 
     def next_timer_event(self, real_time: float) -> float:
@@ -90,7 +93,7 @@ class Node:
 
         if (
             len(self.entries) >= NUMENTRIES_LIMIT
-            and self.get_error(real_time, msg) > TIME_ERROR_LIMIT
+            and self.get_error_for_msg(real_time, msg) > TIME_ERROR_LIMIT
         ):
             self.entries = []
         else:

@@ -11,10 +11,29 @@ class Event:
     handler: Callable = field(compare=False)
 
 
-@dataclass
+@dataclass(init=False)
 class StatPoint:
-    time: float
+    real_time: float
+    synced_count: int
+    root_claimants: List[int]
     prediction_errors: List[float]
+
+    def __init__(self, nodes, real_time):
+        self.real_time = real_time
+        self.root_claimants = [node.node_id for node in nodes if node.is_root()]
+        self.synced_count = sum(node.is_synced() for node in nodes)
+        if self.root_claimants:
+            actual_root = sorted(self.root_claimants)[0]
+            self.prediction_errors = [
+                abs(
+                    node.predict_time(real_time)
+                    - nodes[actual_root].predict_time(real_time)
+                )
+                for node in nodes
+                if node.is_synced()
+            ]
+        else:
+            self.prediction_errors = []
 
 
 def simulate(
@@ -66,12 +85,7 @@ def simulate(
     def calc_stats():
         if debug_print:
             print(f"{real_time}: Statistics")
-        errors = [
-            abs(node.predict_time(real_time) - real_time)
-            for node in nodes
-            if node.is_synced()
-        ]
-        return StatPoint(real_time, errors)
+        return StatPoint(nodes, real_time)
 
     stats = []
 
