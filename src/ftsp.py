@@ -6,7 +6,7 @@ from scipy.linalg import lstsq
 RESYNC_TIME = 30
 NUMENTRIES_LIMIT = 3
 ROOT_TIMEOUT = 6
-TIME_ERROR_LIMIT = 0.001
+TIME_ERROR_LIMIT = 0.01
 
 
 @dataclass
