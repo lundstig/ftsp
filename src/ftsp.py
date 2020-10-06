@@ -7,9 +7,9 @@ from scipy.linalg import lstsq
 
 RESYNC_TIME = 30
 MAX_ENTRIES = 10
-NUMENTRIES_LIMIT = 3
+NUMENTRIES_LIMIT = 5
 ROOT_TIMEOUT = 6
-TIME_ERROR_LIMIT = 0.001
+TIME_ERROR_LIMIT = 0.010
 
 
 @dataclass
@@ -64,7 +64,7 @@ class Node:
         local_times, global_times = zip(*self.entries)
         A = np.stack([np.array(local_times), np.ones(len(self.entries))], axis=1)
         b = np.array(global_times)
-        # self.predicted_skew, self.predicted_offset = lstsq(A, b)[0]
+        self.predicted_skew, self.predicted_offset = lstsq(A, b)[0]
 
     def get_error_for_msg(self, real_time, msg):
         return self.predict_time(real_time) - msg.send_time

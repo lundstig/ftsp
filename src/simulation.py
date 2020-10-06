@@ -22,7 +22,7 @@ class StatPoint:
     total_nodes: int
     synced_count: int
     root_claimants: List[int]
-    prediction_error_us: List[float]
+    prediction_error: List[float]
 
     def __init__(self, nodes, real_time):
         self.real_time = real_time
@@ -31,7 +31,7 @@ class StatPoint:
         self.synced_count = sum(node.is_synced() for node in nodes)
         if self.root_claimants:
             actual_root = sorted(self.root_claimants)[0]
-            self.prediction_error_us = [
+            self.prediction_error = [
                 abs(
                     node.predict_time(real_time)
                     - nodes[actual_root].predict_time(real_time)
@@ -40,7 +40,7 @@ class StatPoint:
                 if node.is_synced()
             ]
         else:
-            self.prediction_error_us = []
+            self.prediction_error = []
 
 
 def random_with_diameter(span: float) -> float:
@@ -94,7 +94,6 @@ def simulate(
             add_timer_event(node)
 
         timer_event = Event(node.next_timer_event(real_time), on_timer_event)
-        # print(timer_event.time)
         future_events.put(timer_event)
 
     def add_msg_event(msg, reciever: Node, delay: float):
