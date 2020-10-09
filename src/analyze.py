@@ -13,7 +13,6 @@ def calc_mean_maximum_errors(stats: List[StatPoint]):
     maximum = [
         np.max(stat.prediction_error) for stat in stats if stat.prediction_error
     ]
-    print(mean)
     return mean, maximum
 
 
@@ -21,6 +20,13 @@ def plot_single_run(stats: List[StatPoint], filename=None):
     print("Plotting...")
     clear_first = 60 * 5
     mean, maximum = calc_mean_maximum_errors(stats)
+    
+    last_point = stats[-1].real_time
+    missing = int(last_point - len(mean))
+    mean = [0] * missing + mean
+    maximum = [0] * missing + maximum
+
+
     # mean[0:clear_first] = [0] * clear_first
     scatter_x = np.concatenate(
         [[stat.real_time] * len(stat.prediction_error) for stat in stats]
