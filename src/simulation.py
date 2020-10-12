@@ -72,7 +72,6 @@ def simulate(
     drop_rate: float = 0.0,
     debug_print: bool = False,
 ) -> List[StatPoint]:
-    np.random.seed(0)
     nodes = [
         Node(
             node_id=i,

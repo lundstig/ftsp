@@ -58,7 +58,7 @@ def plot_error(errors: List[float], mean_delay, filename=None):
     plt.figure()
     plt.ylabel("Time prediction error (s)")
     plt.xlabel("Mean delay (s)")
-    plt.bar(mean_delay, errors)
+    plt.plot(mean_delay, errors)
     if filename:
         plt.savefig(filename, transparent=True)
     else:
