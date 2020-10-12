@@ -17,7 +17,7 @@ def calc_mean_maximum_errors(stats: List[StatPoint]):
 
 
 def plot_single_run(stats: List[StatPoint], filename=None):
-    print("Plotting...")
+    plt.figure()
     clear_first = 60 * 5
     mean, maximum = calc_mean_maximum_errors(stats)
     
@@ -39,8 +39,8 @@ def plot_single_run(stats: List[StatPoint], filename=None):
     ax1.set_xlabel("Simulation time (s)")
     # ax1.set_ylabel("Time prediction error (μs)")
     ax1.set_ylabel("Time prediction error (s)")
-    ax1.set_ylim(0, 0.01)
-    # ax1.set_yscale("log")
+    # ax1.set_ylim(0, 0.01)
+    ax1.set_yscale("log")
     ax1.plot(mean, "-", linewidth=3, label="Mean")
 
     ax2 = ax1.twinx()
@@ -52,3 +52,15 @@ def plot_single_run(stats: List[StatPoint], filename=None):
         plt.savefig(filename, transparent=True)
     else:
         plt.show()
+    plt.clf()
+
+def plot_error(errors: List[float], mean_delay, filename=None):
+    plt.figure()
+    plt.ylabel("Time prediction error (s)")
+    plt.xlabel("Mean delay (s)")
+    plt.bar(mean_delay, errors)
+    if filename:
+        plt.savefig(filename, transparent=True)
+    else:
+        plt.show()
+    plt.clf()

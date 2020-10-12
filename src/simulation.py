@@ -42,6 +42,9 @@ class StatPoint:
         else:
             self.prediction_error = []
 
+    def mean_error(self):
+        return np.mean(self.prediction_error)
+
 
 def random_with_diameter(span: float) -> float:
     return random.uniform(-span / 2, span / 2)
@@ -64,11 +67,11 @@ def simulate(
     offset_sigma: float,
     skew_sigma: float,
     connect_closest=5,
-    area_diameter=1_000_000,
+    area_diameter=500_000,
     stats_every: float = 1.0,
+    drop_rate: float = 0.0,
     debug_print: bool = False,
 ) -> List[StatPoint]:
-    print(f"Simulating with {n} nodes")
     np.random.seed(0)
     nodes = [
         Node(
@@ -116,6 +119,10 @@ def simulate(
     def broadcast_msg(msg, sender: Node):
         if debug_print:
             print(f"{real_time}: {sender.node_id} sending {msg}")
+        if np.random.rand() < drop_rate:
+            if debug_print:
+                print("Dropped!")
+            return
         for reciever in neighbours[sender]:
             add_msg_event(msg, reciever, msg_delay(sender, reciever))
 
